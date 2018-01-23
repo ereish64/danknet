@@ -1,7 +1,7 @@
 classes= 1
 train  = /home/ethan/darknet/data/frccube_list.txt
 #valid  = coco_testdev
-#valid = data/coco_val_5k.list
+valid = data/names.list
 names = data/coco.names
 backup = backup/
 eval=coco
