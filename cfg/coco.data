@@ -1,5 +1,5 @@
 classes= 1
-train  = /home/ethan/darknet/data/frccube_list.txt
+train  = /home/ethan/danknet/data/frccube_list.txt
 #valid  = coco_testdev
 valid = data/frccube_list.txt
 names = data/coco.names
