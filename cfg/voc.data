@@ -1,8 +1,6 @@
-classes= 1
-train  = /home/ethan/danknet/data/frccube_list.txt
-#valid  = coco_testdev
-valid = data/frccube_list.txt
-names = data/coco.names
-backup = backup/
-eval=coco
+classes= 20
+train  = /home/pjreddie/data/voc/train.txt
+valid  = /home/pjreddie/data/voc/2007_test.txt
+names = data/voc.names
+backup = backup
 

@@ -1,25 +1,25 @@
 from ctypes import *
 import cv2
-import math
 import random
 import numpy
-from PIL import Image
-import socket
+
 
 def sample(probs):
     s = sum(probs)
-    probs = [a/s for a in probs]
+    probs = [a / s for a in probs]
     r = random.uniform(0, 1)
     for i in range(len(probs)):
         r = r - probs[i]
         if r <= 0:
             return i
-    return len(probs)-1
+    return len(probs) - 1
+
 
 def c_array(ctype, values):
-    arr = (ctype*len(values))()
+    arr = (ctype * len(values))()
     arr[:] = values
     return arr
+
 
 class BOX(Structure):
     _fields_ = [("x", c_float),
@@ -27,19 +27,56 @@ class BOX(Structure):
                 ("w", c_float),
                 ("h", c_float)]
 
+
 class IMAGE(Structure):
     _fields_ = [("w", c_int),
                 ("h", c_int),
                 ("c", c_int),
                 ("data", POINTER(c_float))]
 
+
+def convert_image(im):
+    # type: (numpy.ndarray) -> object
+    im[:, :, 0], im[:, :, 2] = im[:, :, 2], im[:, :, 0]
+    im = numpy.einsum('ijk->jik', im)
+
+    w, h, c = im.shape
+
+    im = im.flatten('C').astype(c_float)
+    im /= 255.0
+
+    #data = (c_float * (w * h * c))()
+    #for i in range(im.size):
+    #    data[i] = im[i]
+    #ptr = cast(data, POINTER(c_float))
+
+    data = numpy.ctypeslib.as_ctypes(im)
+    ptr = cast(data, POINTER(c_float))
+
+    # Create a new float array of size (w * h * c).
+    # data2 = (c_float * (w * h * 3))()
+
+    # This is probably correct.
+    # for x in range(w):
+    #    for y in range(h):
+    #        for c in range(3):
+    #            data[x + w * y + w * h * c] = c_float(im.getpixel((x, y))[c] / 255.0)
+
+    output = IMAGE()
+    output.w = c_int(w)
+    output.h = c_int(h)
+    output.c = c_int(c)
+    output.data = ptr
+
+    return output
+
+
 class METADATA(Structure):
     _fields_ = [("classes", c_int),
                 ("names", POINTER(c_char_p))]
 
-    
 
-#lib = CDLL("/home/pjreddie/documents/darknet/libdarknet.so", RTLD_GLOBAL)
+# lib = CDLL("/home/pjreddie/documents/darknet/libdarknet.so", RTLD_GLOBAL)
 lib = CDLL("./libdarknet.so", RTLD_GLOBAL)
 lib.network_width.argtypes = [c_void_p]
 lib.network_width.restype = c_int
@@ -107,6 +144,7 @@ predict_image.restype = POINTER(c_float)
 network_detect = lib.network_detect
 network_detect.argtypes = [c_void_p, IMAGE, c_float, c_float, c_float, POINTER(BOX), POINTER(POINTER(c_float))]
 
+
 def classify(net, meta, im):
     out = predict_image(net, im)
     res = []
@@ -115,12 +153,16 @@ def classify(net, meta, im):
     res = sorted(res, key=lambda x: -x[1])
     return res
 
-def detect(net, meta, image, thresh=.6, hier_thresh=.5, nms=.45):
-    im = load_image(image, 0, 0)
+
+def detect(net, meta, image, thresh=.5, hier_thresh=.5, nms=.45):
+    im = image
     boxes = make_boxes(net)
     probs = make_probs(net)
-    num =   num_boxes(net)
+    num = num_boxes(net)
+
+    # This is where everything goes to shit.
     network_detect(net, im, thresh, hier_thresh, nms, boxes, probs)
+
     res = []
     for j in range(num):
         for i in range(meta.classes):
@@ -131,54 +173,21 @@ def detect(net, meta, image, thresh=.6, hier_thresh=.5, nms=.45):
     free_ptrs(cast(probs, POINTER(c_void_p)), num)
     return res
 
+
 if __name__ == "__main__":
-    #starting opencv stuff
     camera_port = 0
     camera = cv2.VideoCapture(camera_port)
-    s = socket.socket()         
-    print "Socket successfully created"
-    port = 12345
-    s.bind(('', port))
-    print "socket binded to %s" %(port)
-    print "socket is listening"   
 
-
-    #net = load_net("cfg/densenet201.cfg", "/home/pjreddie/trained/densenet201.weights", 0)
-    #im = load_image("test.jpeg", 0, 0)
-
-    #meta = load_meta("cfg/imagenet1k.data")
-    #r = classify(net, meta, im)
-    #print r[:10]
     net = load_net("cfg/tiny-yolo-voc.cfg", "backup/tiny-yolo-voc_final.weights", 0)
     meta = load_meta("cfg/coco.data")
     while True:
-        retval, im = camera.read()
-        cv2.imwrite("/media/ramdisk/stuff.jpg", im)
-        r = detect(net, meta, "/media/ramdisk/stuff.jpg")
-        s.listen(5)   
-        # Establish connection with client.
-        c, addr = s.accept()     
-        print('Got connection from', addr)
- 
-        # send a thank you message to the client. 
-        c.send('Thank you for connecting')
-
-        #robo driving stuff
-        roboxy = str(r[0]).replace('(', ',')
-        roboxy = xy.split(' ')
-        robox = xy[0]
-        roboy = xy[1]
-        if(x<320):
-            disttotravel = 320-x
-            c.send(disttotravel)
-        if(x>320):
-            disttotravel = 320+x
-            c.send(disttotravel)
+        _, im = camera.read()
+        cv2.imwrite("test.jpg", im)
+        im2 = load_image("test.jpg", 0, 0)
+        im = convert_image(im)
+        r = detect(net, meta, im)
 
         if not r:
             print("nothing")
         else:
-            print(xy)
-            #print(str(r[0][2]).replace('(', '').replace(')', ''))
-        #print type (r)
-
+            print(str(r[0][2]).replace('(', '').replace(')', ''))
