@@ -2,6 +2,9 @@ from ctypes import *
 import cv2
 import math
 import random
+import numpy
+from PIL import Image
+import socket
 
 def sample(probs):
     s = sum(probs)
@@ -112,7 +115,7 @@ def classify(net, meta, im):
     res = sorted(res, key=lambda x: -x[1])
     return res
 
-def detect(net, meta, image, thresh=.5, hier_thresh=.5, nms=.45):
+def detect(net, meta, image, thresh=.6, hier_thresh=.5, nms=.45):
     im = load_image(image, 0, 0)
     boxes = make_boxes(net)
     probs = make_probs(net)
@@ -132,17 +135,50 @@ if __name__ == "__main__":
     #starting opencv stuff
     camera_port = 0
     camera = cv2.VideoCapture(camera_port)
+    s = socket.socket()         
+    print "Socket successfully created"
+    port = 12345
+    s.bind(('', port))
+    print "socket binded to %s" %(port)
+    print "socket is listening"   
+
 
     #net = load_net("cfg/densenet201.cfg", "/home/pjreddie/trained/densenet201.weights", 0)
-    #im = load_image("data/wolf.jpg", 0, 0)
+    #im = load_image("test.jpeg", 0, 0)
+
     #meta = load_meta("cfg/imagenet1k.data")
     #r = classify(net, meta, im)
     #print r[:10]
-    net = load_net("cfg/tiny-yolo-voc.cfg", "backup/tiny-yolo-voc.backup", 0)
+    net = load_net("cfg/tiny-yolo-voc.cfg", "backup/tiny-yolo-voc_final.weights", 0)
     meta = load_meta("cfg/coco.data")
     while True:
         retval, im = camera.read()
-	cv2.imwrite("test.jpg", im)
-    	r = detect(net, meta, "./test.jpg")
-    	print r
+        cv2.imwrite("/media/ramdisk/stuff.jpg", im)
+        r = detect(net, meta, "/media/ramdisk/stuff.jpg")
+        s.listen(5)   
+        # Establish connection with client.
+        c, addr = s.accept()     
+        print('Got connection from', addr)
+ 
+        # send a thank you message to the client. 
+        c.send('Thank you for connecting')
+
+        #robo driving stuff
+        roboxy = str(r[0]).replace('(', ',')
+        roboxy = xy.split(' ')
+        robox = xy[0]
+        roboy = xy[1]
+        if(x<320):
+            disttotravel = 320-x
+            c.send(disttotravel)
+        if(x>320):
+            disttotravel = 320+x
+            c.send(disttotravel)
+
+        if not r:
+            print("nothing")
+        else:
+            print(xy)
+            #print(str(r[0][2]).replace('(', '').replace(')', ''))
+        #print type (r)
 
